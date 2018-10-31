@@ -1,0 +1,3 @@
+numpy==1.15.3 
+imageio==2.4.1 
+scikit-image==0.14.1 

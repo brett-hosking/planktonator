@@ -79,7 +79,7 @@ def draw_contours(img, contours):
     return cdraw_img
 
 
-def particle_crop(img,contour):
+def particle_crop(img,contour,n):
     '''
         Use skimage contours to produce crop of individual.
 
@@ -87,30 +87,28 @@ def particle_crop(img,contour):
     '''
     xmin,xmax       = int(min(contour[:, 1])), int(max(contour[:, 1]))+1
     ymin,ymax       = int(min(contour[:, 0])), int(max(contour[:, 0]))+1
-    # print ymin,ymax 
-    # print xmin, xmax
     bwidth,bheight  = xmax-xmin, ymax-ymin
-    # print np.shape(contour)
-    cropmask        = np.array(np.zeros((bheight,bwidth)),dtype=bool)
-    # print np.shape(cropmask)
-    # print np.subtract(contour[:, 0],ymin).astype(int)
-    # print np.subtract(contour[:, 1],xmin).astype(int)
+
     # Create a contour image by using the contour coordinates rounded to their nearest integer value
+    cropmask        = np.array(np.zeros((bheight,bwidth)),dtype=bool)
     cropmask[np.subtract(contour[:, 0],ymin).astype(int), np.subtract(contour[:, 1],xmin).astype(int)] = 1
 
     # Fill in the hole created by the contour boundary
     cropmask = np.multiply(ndimage.morphology.binary_fill_holes(cropmask),255).astype('uint8')
     zeroidx     = cropmask == 0
     onesidx     = cropmask == 255
-    plktor.image.io.save_image(cropmask,'0mask.png')
 
-    crop            = np.multiply(np.array(np.ones((bheight,bwidth))),255,dtype=float)
-    crop            = img[ymin:ymax,xmin:xmax]
+    # Copy the crop area from the image
+    crop            = img[ymin:ymax,xmin:xmax].copy()
+    # Change all values outside of the contour mask to 255
     crop[zeroidx]   = 255
 
-    crop        = np.clip(img[ymin:ymax,xmin:xmax],0,255)
-    
-    # Remove pixels outside of contours 
-    # crop            = np.subtract(crop,cropmask)
+    return np.clip(crop,0,255),cropmask
 
-    return crop
+
+def flatten(img,mask):
+    '''
+    Flattens an image with only values contained 
+    in a mask
+    '''
+    return img.flatten()[np.where((mask.flatten()==255)==True)[0]]

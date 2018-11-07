@@ -36,4 +36,3 @@ def removebypos():
     '''
 
     raise NotImplementedError
-

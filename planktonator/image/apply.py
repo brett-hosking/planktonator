@@ -47,7 +47,9 @@ def maskfill(mask,contours):
     '''
         Ensure that any gaps in blobs are filled within the mask
 
+        Assumes mask is black on white background
     '''
+    
     # Create an empty image to store the masked array
     r_mask = np.zeros_like(mask, dtype='bool')
 
@@ -60,7 +62,9 @@ def maskfill(mask,contours):
 
     # Invert the mask since you want pixels outside of the region
     r_mask = np.multiply(~r_mask,255)
-    
+
+    # Make sure original mask values are retained 
+    r_mask[mask == 0] = 0
     return r_mask.astype('uint8') 
 
 
@@ -106,9 +110,12 @@ def particle_crop(img,contour,n):
     return np.clip(crop,0,255),cropmask
 
 
-def flatten(img,mask):
+def flatten(img,mask,maskval=0,bgval=255):
     '''
     Flattens an image with only values contained 
-    in a mask
+    in a mask and excluding background vals
     '''
-    return img.flatten()[np.where((mask.flatten()==255)==True)[0]]
+    imgflat = img.flatten()[np.where((mask.flatten()==maskval)==True)[0]]
+    return imgflat[imgflat != bgval]
+
+

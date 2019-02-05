@@ -1,4 +1,5 @@
 import numpy as np
+import planktonator as plktor
 
 def removebyarea(contours,t=50):
     '''
@@ -36,3 +37,27 @@ def removebypos():
     '''
 
     raise NotImplementedError
+
+
+def flatten(img, contours):
+    '''
+        Flatten all contours into a single 1D array
+
+        Parameters 
+        ----------
+        img : array-like
+            image containing particles
+
+        contours : array-like 
+            contour positions
+
+        Returns
+        -------
+    '''
+    for n, contour in enumerate(contours):
+        crop,cropmask            = plktor.image.apply.particle_crop(img,contour,n)
+        if n == 0: 
+            arr = plktor.image.apply.flatten(crop,cropmask)
+        else: 
+            arr     = np.append(arr, plktor.image.apply.flatten(crop,cropmask))
+    return arr

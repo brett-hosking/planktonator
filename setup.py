@@ -1,6 +1,6 @@
 #!/usr/bin/env python
-""" Planktonator is a computer vision package built for detecting and measuring particles using computer vision
-and machine learning in Python.
+""" Planktonator is a Python package built for detecting and measuring particles using computer vision
+and machine learning.
 
     - Outputs .tsv files ready to be imported directly into EcoTaxa
 

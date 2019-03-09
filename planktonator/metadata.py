@@ -1,8 +1,135 @@
 import pandas as pd
 import numpy as np
-from planktonator.package import version
-from planktonator.package import name
+from planktonator.version import __version__
 
+
+class HoloBatch:
+
+    def __init__(self):
+        self.df         = pd.DataFrame(columns=self.headers())
+
+    def save(self,output):
+        self.df.to_csv(output,index=False)
+
+    def load(self,file):
+        self.df = pd.read_csv(file)
+
+    def addrow( self,
+                planktonator_particle_id=None,
+                planktonator_montage_id=None,
+                Area=None,
+                EquivDiameter=None,
+                MajorAxisLength=None,
+                MinorAxisLength=None,
+                Solidity=None,
+                Eccentricity=None,
+                FilledArea=None,
+                ConvexArea=None,
+                EquivAreaDiameter=None,
+                Volume=None,
+                Centroid=None,
+                Depth=None,
+                BoundingBox=None,
+                Orientation=None,
+                EulerNumber=None,
+                Extent=None,
+                Perimeter=None,
+                software_name='planktonator',
+                software_version=__version__
+            ):
+            self.df.loc[len(self.df)]   = [
+                planktonator_particle_id,
+                planktonator_montage_id,
+                Area,
+                EquivDiameter,
+                MajorAxisLength,
+                MinorAxisLength,
+                Solidity,
+                Eccentricity,
+                FilledArea,
+                ConvexArea,
+                EquivAreaDiameter,
+                Volume,
+                Centroid,
+                Depth,
+                BoundingBox,
+                Orientation,
+                EulerNumber,
+                Extent,
+                Perimeter,
+                software_name,
+                software_version
+            ]
+
+    def headers(self):
+        return [
+                'planktonator_particle_id',
+                'planktonator_montage_id',
+                'Area',
+                'EquivDiameter',
+                'MajorAxisLength',
+                'MinorAxisLength',
+                'Solidity',
+                'Eccentricity',
+                'FilledArea',
+                'ConvexArea',
+                'EquivAreaDiameter',
+                'Volume',
+                'Centroid',
+                'Depth',
+                'BoundingBox',
+                'Orientation',
+                'EulerNumber',
+                'Extent',
+                'Perimeter',
+                'software_name',
+                'software_version'
+            ]
+
+
+class Annotation:
+
+    def __init__(self):
+        self.df         = pd.DataFrame(columns=self.headers())
+
+    def save(self,output):
+        self.df.to_csv(output,index=False)
+
+    def load(self,file):
+        self.df = pd.read_csv(file)
+
+    def addrow( self,
+                particle_id=None,
+                montage_id=None,
+                centre_x=None,
+                centre_y=None,
+                bbox_width=None,
+                bbox_height=None,
+                software_name='planktonator',
+                software_version=__version__
+            ):
+            self.df.loc[len(self.df)]   = [
+                particle_id,
+                montage_id,
+                centre_x,
+                centre_y,
+                bbox_width,
+                bbox_height,
+                software_name,
+                software_version
+            ]
+
+    def headers(self):
+        return [
+                'particle_id',
+                'montage_id',
+                'centre_x',
+                'centre_y',
+                'bbox_width',
+                'bbox_height',
+                'software_name',
+                'software_version'
+            ]
 
 class EcoTaxa:
 
@@ -87,7 +214,7 @@ class EcoTaxa:
                     process_id=None,	
                     process_date=None,	
                     process_time=None,	
-                    process_img_software_version=version(),
+                    process_img_software_version=__version__,
                     process_img_resolution=None,	
                     process_img_od_grey=None,	
                     process_img_od_std=None,	
@@ -99,7 +226,7 @@ class EcoTaxa:
                     process_particle_max_size_mm=None,	
                     process_particle_sep_mask=None,	
                     process_particle_bw_ratio=None,
-                    process_software=name(),	
+                    process_software='planktonator',	
                     acq_id=None,
                     acq_min_mesh=None,	
                     acq_max_mesh=None,	

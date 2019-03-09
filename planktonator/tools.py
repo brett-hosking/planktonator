@@ -19,3 +19,11 @@ def zipextract(path,zipf):
 
 def rmfolder(path):
     shutil.rmtree(path)
+
+
+def rmspace(string):
+    '''
+        Remove arbitrary whitespace
+    '''
+    # remove space before and after string and all but one in the middle
+    return re.sub(' +', ' ',string.strip())

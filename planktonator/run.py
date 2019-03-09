@@ -35,6 +35,8 @@ def extract_particles(inpath,outpath,pixellim=200,montage_str='mon'):
     if os.path.exists(os.path.join(outpath,'tmp')):shutil.rmtree(os.path.join(outpath,'tmp'))
     tempfolder = os.mkdir(os.path.join(outpath,'tmp'))
 
+    # Create annotation class 
+    annot   = plktor.metadata.Annotation()
 
     # cycle through images and extract particles 
     for f in filelist:
@@ -81,13 +83,27 @@ def extract_particles(inpath,outpath,pixellim=200,montage_str='mon'):
         # particle_outpath = os.path.join(outpath,filename)
         # if not os.path.exists(particle_outpath): os.mkdir(particle_outpath)
         for n, contour in enumerate(contours):
-            crop,cropmask            = plktor.image.apply.particle_crop(img,contour,n)
+            crop,cropmask            = plktor.image.apply.particle_crop(img,contour)
+            # Get x and y, and bounding box width and height
+            x,y,bwidth,bheight       = plktor.image.contours.possize(contour)
             # save crop and change filename to particle
             crop_filename   = "".join((filename.replace(montage_str,'particle'),'_',str(n) )) 
             crop_file       = "".join((crop_filename,'.png'))
             plktor.image.io.save_image(crop,os.path.join(outpath,crop_file))
             plktor.image.io.save_image(cropmask,os.path.join(outpath,'tmp',"".join((crop_filename,'_mask.png'))))
 
+            # Add to annotation file 
+            annot.addrow(
+                        particle_id     = crop_filename,
+                        montage_id      = filename,
+                        centre_x        = x, 
+                        centre_y        = y,
+                        bbox_width      = bwidth,
+                        bbox_height     = bheight
+            )
+
+    # save annotation file 
+    annot.save(os.path.join(inpath,'particle_annotation.csv'))
 
 
 def measure_particles(particle_path,mon_height,mon_width,pixellim=100,project='',lat=None,lon=None,date=None,time=None):
@@ -229,5 +245,80 @@ def measure_particles(particle_path,mon_height,mon_width,pixellim=100,project=''
 
     # remove temporary files
     if os.path.exists(os.path.join(particle_path,'tmp')):shutil.rmtree(os.path.join(particle_path,'tmp'))
+
+
+def holobatchsync(annotationdir, holobatchdir):
+    '''
+    match the particles detected by Planktonator 
+    with those detected by Holo Batch using 
+    closest centroids
+
+    Parameters 
+    ----------
+    annotationdir : str 
+        path to the annotation dir with file produced by extract_particles()
+    holobatchdir : str 
+        path to the holo batch size directory
+    '''
+    import pandas as pd
+    ''' Read annotation file '''
+    annot   = plktor.metadata.Annotation()
+    annot.load(os.path.join(annotationdir, 'particle_annotation.csv'))
+
+    ''' Create new HoloBatch annotation file '''
+    holob   = plktor.metadata.HoloBatch()
+
+    ''' for every particle find the best match from the holobatch output '''
+    N       = len(annot.df)
+    for i in range(N):
+        xpos , ypos         = annot.df.iloc[i]['centre_x'],annot.df.iloc[i]['centre_y']
+        montage_id  = annot.df.iloc[i]['montage_id']
+        # Load holobatch file 
+        try:
+            dfholo      = pd.read_csv(os.path.join(holobatchdir, montage_id[:-4] + '-pstat.csv'))
+
+             # for each particle in dfholo, calculate the euclidean distance 
+            dfholo.Centroid = dfholo.Centroid.replace('\s+', ' ', regex=True) # USE this! should work for all
+            # print(dfholo['Centroid'])
+            # split the strings into two, x and y
+            dfholo['centroid_x']    = pd.to_numeric(dfholo.Centroid.str.split(' ').str.get(0), errors='coerce')
+            dfholo['centroid_y']    = pd.to_numeric(dfholo.Centroid.str.split(' ').str.get(1), errors='coerce')  
+            # calculate euclidean distance between plantonator coordinates and all holobatch coordinates.
+            dfholo['euclidean']     = np.sqrt(((dfholo['centroid_x'] - xpos)**2) + ((dfholo['centroid_y'] - ypos)**2))
+            # determine the closest one 
+            mineuclid               = dfholo['euclidean'].min() 
+            match_id                = np.where(dfholo['euclidean'] == mineuclid)[0][0]
+            # add row to holobatch metadata class
+            holob.addrow(
+                    planktonator_particle_id        = annot.df.iloc[i]['particle_id'],
+                    planktonator_montage_id         = annot.df.iloc[i]['montage_id'],
+                    Area                            = dfholo.iloc[match_id]['Area'],
+                    EquivDiameter                   = dfholo.iloc[match_id]['EquivDiameter'],
+                    MajorAxisLength                 = dfholo.iloc[match_id]['MajorAxisLength'],
+                    MinorAxisLength                 = dfholo.iloc[match_id]['MinorAxisLength'],
+                    Solidity                        = dfholo.iloc[match_id]['Solidity'],
+                    Eccentricity                    = dfholo.iloc[match_id]['Eccentricity'],
+                    FilledArea                      = dfholo.iloc[match_id]['FilledArea'],
+                    ConvexArea                      = dfholo.iloc[match_id]['ConvexArea'],
+                    EquivAreaDiameter               = dfholo.iloc[match_id]['EquivAreaDiameter'],
+                    Volume                          = dfholo.iloc[match_id]['Volume'],
+                    Centroid                        = dfholo.iloc[match_id]['Centroid'],
+                    Depth                           = dfholo.iloc[match_id]['Depth'],
+                    BoundingBox                     = dfholo.iloc[match_id]['BoundingBox'],
+                    Orientation                     = dfholo.iloc[match_id]['Orientation'],
+                    EulerNumber                     = dfholo.iloc[match_id]['EulerNumber'],
+                    Extent                          = dfholo.iloc[match_id]['Extent'],
+                    Perimeter                       = dfholo.iloc[match_id]['Perimeter']
+            )
+        except:
+            # add row to holobatch metadata class
+            holob.addrow(
+                    planktonator_particle_id        = annot.df.iloc[i]['particle_id'],
+                    planktonator_montage_id         = annot.df.iloc[i]['montage_id']
+            )
+        
+        
+    # save holobatch metadata 
+    holob.save(os.path.join(annotationdir,'holobatch_annotation.csv'))
 
 # if __name__=='__main__':

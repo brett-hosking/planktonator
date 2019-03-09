@@ -61,3 +61,27 @@ def flatten(img, contours):
         else: 
             arr     = np.append(arr, plktor.image.apply.flatten(crop,cropmask))
     return arr
+
+
+def possize(contour):
+    '''
+        Given a contour, determine and return the 
+        centre x and y coordinate, and width and height 
+        of the best fitting bounding box
+
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        x
+        y
+        width
+        height
+        
+    '''
+    xmin,xmax       = int(min(contour[:, 1])), int(max(contour[:, 1]))
+    ymin,ymax       = int(min(contour[:, 0])), int(max(contour[:, 0]))
+    bwidth,bheight  = xmax-xmin, ymax-ymin
+    return int(np.rint(xmin+(bwidth/2.0))),int(np.rint(ymin+(bheight/2.0))),bwidth,bheight

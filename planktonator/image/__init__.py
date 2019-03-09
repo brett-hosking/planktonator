@@ -1,16 +1,4 @@
-# from __future__ import absolute_import
-# import io
-# import apply
-# import filters
-# import contours
-# import stats
-
-# from .io import *
-# from .apply import *
-# from .filters import *
-# from .contours import *
-# from .stats import *
-
+# Nested package modules
 from . import io
 from . import apply
 from . import filters

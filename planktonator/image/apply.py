@@ -83,7 +83,7 @@ def draw_contours(img, contours):
     return cdraw_img
 
 
-def particle_crop(img,contour,n):
+def particle_crop(img,contour):
     '''
         Use skimage contours to produce crop of individual.
 

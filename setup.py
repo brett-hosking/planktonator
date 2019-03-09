@@ -20,10 +20,11 @@ setup(name='planktonator',
       author='brett hosking',
       author_email='wilski@noc.ac.uk',
       install_requires=[
-                "tensorflow>=1.12.0",
-                "requests>=2.21.0",
-                "imageio>=2.5.0",
-                "pandas>=0.24.1",
+            "numpy>=1.16.2",
+            "imageio>=2.5.0",
+            "pandas>=0.24.1",
+            "scipy>=1.2.1",
+            "scikit-image>=0.14.2"  
                 ],
       packages=find_packages()
       )

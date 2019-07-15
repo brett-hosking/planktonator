@@ -21,7 +21,7 @@ def extract_particles(inpath,outpath,pixellim=200,montage_str='mon'):
     filelist    = os.listdir(inpath)
 
     # create output directory 
-    if not os.path.exists(outpath):os.mkdir(outpath)
+    if not os.path.exists(outpath):os.mkdir(outpath)    
 
     # excepted image extensions
     imgext      = ('jpg','jpeg','png','tiff')
@@ -32,8 +32,7 @@ def extract_particles(inpath,outpath,pixellim=200,montage_str='mon'):
     ### ------------------------- ###
 
     # clear/create tmp folder 
-    if os.path.exists(os.path.join(outpath,'tmp')):shutil.rmtree(os.path.join(outpath,'tmp'))
-    tempfolder = os.mkdir(os.path.join(outpath,'tmp'))
+    if not os.path.exists(os.path.join(outpath,'tmp')):os.makedirs(os.path.join(outpath,'tmp'))
 
     # Create annotation class 
     annot   = plktor.metadata.Annotation()
@@ -46,38 +45,33 @@ def extract_particles(inpath,outpath,pixellim=200,montage_str='mon'):
         # load image 
         img         = plktor.image.io.imread(os.path.join(inpath,f))
 
+        # remove scale bar 
+        img         = plktor.image.apply.removescale(img, a=[1205,1230,0,350], p=255)
+
         # apply threshold 
-        mask        = plktor.image.apply.threshold(img,t=240)
-        
-        # remove scale bar - function needs a better name - some more general
-        mask         = plktor.image.apply.removescale(mask, a=[1210,1230,0,350], p=255)
+        # mask        = plktor.image.apply.threshold(img,t=240)
+        mask        = plktor.image.threshold.otsu(img)
+
         # apply low pass filter 
-        kernel  = plktor.image.filters.kernel2D(plktor.image.filters.linear(filterwidth=35))
+        kernel  = plktor.image.filters.kernel2D(plktor.image.filters.linear(filterwidth=25))# 35
         mask    = plktor.image.apply.convolution(mask,kernel) 
-        
         # apply threshold 
-        mask        = plktor.image.apply.threshold(mask,t=240)
-        # plktor.image.io.save_image(mask,os.path.join(outpath,"".join((filename,'_mask2.png'))))
+        mask        = plktor.image.apply.threshold(mask,t=240) # 240
 
         # calculate contours 
         contours    = plktor.image.apply.find_contours(mask)
-        # print "number of particles: ", len(contours)
 
         # fill in mask where there is a gap in blob - must be a better way of doing this!
         mask        = plktor.image.apply.maskfill(mask,contours)
-        # plktor.image.io.save_image(mask,os.path.join(outpath,"".join((filename,'_mask3.png'))))
+
         # recalculate contours 
         contours    = plktor.image.apply.find_contours(mask)
-        # print "number of particles after fill: ", len(contours)
 
         # filter contours based on area - remove any tiny ones that cannot be classified
         contours = plktor.image.contours.removebyarea(contours, t=pixellim)
-        # print "number of particles after removebyarea: ", len(contours)
-
 
         # Mark contours on images 
         # imgcont     = plktor.image.apply.draw_contours(img, contours)
-        # plktor.image.io.save_image(imgcont,os.path.join(outpath,"".join((filename,'_contours.png'))))
 
         # Create folder for particle crops 
         # particle_outpath = os.path.join(outpath,filename)
@@ -106,7 +100,7 @@ def extract_particles(inpath,outpath,pixellim=200,montage_str='mon'):
     annot.save(os.path.join(inpath,'particle_annotation.csv'))
 
 
-def measure_particles(particle_path,mon_height,mon_width,pixellim=100,project='',lat=None,lon=None,date=None,time=None):
+def measure_particles(particle_path,mon_height,mon_width,pixellim=100,project='measurements',lat=None,lon=None,date=None,time=None):
     '''
 
     Parameters
@@ -125,9 +119,6 @@ def measure_particles(particle_path,mon_height,mon_width,pixellim=100,project=''
     # metadata - Ecotaxa
     ecotax      = plktor.metadata.EcoTaxa()
 
-    
-    # coding_output   = '../coding_output_particles'
-    # if not os.path.exists(coding_output): os.mkdir(coding_output)
 
     for f in filelist:
         if not f.lower().endswith(imgext): continue
@@ -142,27 +133,22 @@ def measure_particles(particle_path,mon_height,mon_width,pixellim=100,project=''
 
         # apply threshold 
         mask        = plktor.image.apply.threshold(img,t=230)
-        # plktor.image.io.save_image(mask,os.path.join(coding_output,"".join((filename,'_m1.png'))))
 
         # apply low pass filter 
         kernel  = plktor.image.filters.kernel2D(plktor.image.filters.linear(filterwidth=10))
         mask    = plktor.image.apply.convolution(mask,kernel)
-        # plktor.image.io.save_image(mask,os.path.join(coding_output,"".join((filename,'_m1_filtermask.png'))))
 
         # apply threshold 
         mask        = plktor.image.apply.threshold(mask,t=240)
-        # plktor.image.io.save_image(mask,os.path.join(coding_output,"".join((filename,'_m2.png'))))
 
         # calculate contours 
         contours    = plktor.image.apply.find_contours(mask)
 
-        # fill in mask where there is a gap in blob - must be a better way of doing this!
+        # fill in mask where there is a gap in blob 
         mask        = plktor.image.apply.maskfill(mask,contours)
-        # plktor.image.io.save_image(mask,os.path.join(coding_output,"".join((filename,'_m3.png'))))
 
         # recalculate contours 
         contours    = plktor.image.apply.find_contours(mask)
-        # print "number of particles after fill: ", len(contours)
 
         # filter contours based on area - remove any tiny ones that cannot be classified
         contours = plktor.image.contours.removebyarea(contours, t=pixellim)
@@ -170,15 +156,12 @@ def measure_particles(particle_path,mon_height,mon_width,pixellim=100,project=''
         # if no contours exist - skip and also remove particle
         if len(contours) < 1:
             os.remove(os.path.join(particle_path,f))
-            # print ('no contours')
             continue
 
         # Mark contours on images 
-        imgcont     = plktor.image.apply.draw_contours(img, contours)
-        # plktor.image.io.save_image(imgcont,os.path.join(coding_output,"".join((filename,'_contours.png'))))
+        # imgcont     = plktor.image.apply.draw_contours(img, contours)
 
         # Create 1D array of all contour data
-        # cont_flat   = plktor.image.contours.flatten(img, contours)
         cont_flat   = plktor.image.apply.flatten(img, mask)
 
         #Particle parameters 
@@ -279,7 +262,6 @@ def holobatchsync(annotationdir, holobatchdir):
 
              # for each particle in dfholo, calculate the euclidean distance 
             dfholo.Centroid = dfholo.Centroid.replace('\s+', ' ', regex=True) # USE this! should work for all
-            # print(dfholo['Centroid'])
             # split the strings into two, x and y
             dfholo['centroid_x']    = pd.to_numeric(dfholo.Centroid.str.split(' ').str.get(0), errors='coerce')
             dfholo['centroid_y']    = pd.to_numeric(dfholo.Centroid.str.split(' ').str.get(1), errors='coerce')  
@@ -320,5 +302,3 @@ def holobatchsync(annotationdir, holobatchdir):
         
     # save holobatch metadata 
     holob.save(os.path.join(annotationdir,'holobatch_annotation.csv'))
-
-# if __name__=='__main__':

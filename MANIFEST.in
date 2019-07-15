@@ -1,0 +1,4 @@
+include *.txt
+include LICENCE
+recursive-include img *.tiff
+recursive-include test *.py

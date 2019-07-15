@@ -1,5 +1,5 @@
 # Planktonator
-[![License](http://img.shields.io/:license-mit-blue.svg)](http://octopress.mit-license.org) ![Version](https://img.shields.io/badge/version-0.0.3-orange.svg) ![Dependencies](https://img.shields.io/badge/dependencies-up%20to%20date-green.svg) 
+[![License](http://img.shields.io/:license-mit-blue.svg)](http://octopress.mit-license.org) ![Version](https://img.shields.io/badge/version-0.0.4-orange.svg) ![Dependencies](https://img.shields.io/badge/dependencies-up%20to%20date-green.svg) 
 
 Planktonator is a Python package built for detecting and measuring particles using computer vision and machine learning.
 
@@ -30,19 +30,6 @@ Planktonator is a Python package built for detecting and measuring particles usi
 
 >the environment can be deactivated with the **deactivate** command
 
-## Install Package using **pip** (recomended)
+## Install Package using **pip** 
     pip install planktonator 
 
-## Install Package locally
-    git clone https://github.com/brett-hosking/planktonator.git
-
-### Install requirements from file 
-    pip install -r requirements_CPU.txt
-
-
-### Run pip to install package (locally)
-    pip install . 
-
-### Upgrade Package locally
-    git pull
-    pip install . --upgrade

@@ -1,7 +1,7 @@
 # Planktonator
 [![License](http://img.shields.io/:license-mit-blue.svg)](http://octopress.mit-license.org) ![Version](https://img.shields.io/badge/version-0.0.4-orange.svg) ![Dependencies](https://img.shields.io/badge/dependencies-up%20to%20date-green.svg) 
 
-Planktonator is a Python package built for detecting and measuring particles using computer vision and machine learning.
+Planktonator is a Python package built for detecting and measuring particles 
 
     - Outputs .tsv files ready to be imported directly into EcoTaxa
 

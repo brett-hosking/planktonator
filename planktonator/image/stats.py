@@ -1,6 +1,9 @@
 import numpy as np
+import scipy
+import math
 from scipy import stats
 from skimage import measure
+from skimage.morphology import convex_hull_image
 import planktonator as plktor # delete - don't need it
 
 def shape(img):
@@ -10,27 +13,14 @@ def shape(img):
     return np.shape(img)
 
 
-def majorminor(mask):
-    '''
-        length of major and minor axis of the best fitting ellipse
-        Use the mask to determine max number of pixels in each dimension
-        Assumes white background with black region of interest
-    '''
-    try:
-        height, width = np.shape(mask)
-    except:
-        height, width, _ = np.shape(mask)
-
-    maxlenj = 0
-    for j in range(height):
-        if np.divide(np.sum(mask[j,:]),255) > maxlenj: maxlenj = np.divide(np.sum(mask[j,:]),255)
-
-    maxleni = 0
-    for i in range(width):
-        if np.divide(np.sum(mask[:,i]),255) > maxleni: maxleni = np.divide(np.sum(mask[:,i]),255)
-
-    return max([int(maxlenj),int(maxleni)]),min([int(maxlenj),int(maxleni)]) 
-
+def feret_diameter(x):
+    
+    # x: the binary image
+    identity_convex_hull = convex_hull_image(x)
+    coordinates = np.vstack(measure.find_contours(identity_convex_hull, 0.5, 
+                                              fully_connected = 'high'))
+    distances = scipy.spatial.distance.pdist(coordinates, 'sqeuclidean')
+    return math.sqrt(np.max(distances))
 
 
 def perimeter(mask,invert=False):
@@ -210,3 +200,25 @@ def elongation(major,minor):
     elongation: elongation index: major/minor
     '''
     return major/minor
+
+
+def majorminor(mask):
+    '''
+        length of major and minor axis of the best fitting ellipse
+        Use the mask to determine max number of pixels in each dimension
+        Assumes white background with black region of interest
+    '''
+    try:
+        height, width = np.shape(mask)
+    except:
+        height, width, _ = np.shape(mask)
+
+    maxlenj = 0
+    for j in range(height):
+        if np.divide(np.sum(mask[j,:]),255) > maxlenj: maxlenj = np.divide(np.sum(mask[j,:]),255)
+
+    maxleni = 0
+    for i in range(width):
+        if np.divide(np.sum(mask[:,i]),255) > maxleni: maxleni = np.divide(np.sum(mask[:,i]),255)
+
+    return max([int(maxlenj),int(maxleni)]),min([int(maxlenj),int(maxleni)]) 

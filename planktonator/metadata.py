@@ -2,6 +2,102 @@ import pandas as pd
 import numpy as np
 from planktonator.version import __version__
 
+class ParticleMeasure:
+
+    def __init__(self):
+        self.df         = pd.DataFrame(columns=self.headers())
+
+    def save(self,output):
+        self.df.to_csv(output,index=False)
+
+    def load(self,file):
+        self.df = pd.read_csv(file)
+
+    def subset(self,header='depth',val=0.0):
+        '''
+        remove any entries with values in header less 
+        than val
+
+        ignore index 0
+        '''
+        # self.df = self.df.loc[np.insert(pd.to_numeric(self.df[header].loc[1:]).values >= val,0,True)]
+        self.df     = self.df.loc[self.df[header] >= val]
+
+    def headers(self):
+        return [
+                'planktonator_particle_id',
+                'montage_id',
+                'deployment',
+                'montage_num',
+                'cast', 
+                'year',	'month', 'day',	'hour',	'minute', 'second',
+                'depth',
+                'particle_centre_x',
+                'particle_centre_y',	
+                'particle_bbox_width',	
+                'particle_bbox_height',
+                'otsu_area', 'otsu_length', 'otsu_hull', 'otsu_threshold',
+                'isodata_area', 'isodata_length','isodata_hull','isodata_threshold',
+                'li_area', 'li_length','li_hull','li_threshold',
+                'mean_area','mean_length','mean_hull','mean_threshold',
+                'triangle_area','triangle_length','triangle_hull','triangle_threshold',
+                'yen_area','yen_length','yen_hull','yen_threshold',
+                'software_name',
+                'software_version'
+            ]
+
+    def addrow( self,
+                planktonator_particle_id=None,
+                planktonator_montage_id=None,
+                deployment=None,
+                montage_number=None,
+                cast=None,
+                year=None,
+                month=None,
+                day=None,
+                hour=None,
+                minute=None,
+                second=None,
+                depth=None,
+                particle_centre_x=None,
+                particle_centre_y=None,	
+                particle_bbox_width=None,	
+                particle_bbox_height=None,
+                otsu_area=None,otsu_length=None,otsu_hull=None,otsu_threshold=None,
+                iso_area=None,iso_length=None,iso_hull=None,iso_threshold=None,
+                li_area=None,li_length=None,li_hull=None,li_threshold=None,
+                mean_area=None,mean_length=None,mean_hull=None,mean_threshold=None,
+                triangle_area=None,triangle_length=None,triangle_hull=None,triangle_threshold=None,
+                yen_area=None,yen_length=None,yen_hull=None,yen_threshold=None,
+                software_name='planktonator',
+                software_version=__version__
+            ):
+            self.df.loc[len(self.df)]   = [
+                planktonator_particle_id,
+                planktonator_montage_id,
+                deployment,
+                montage_number,
+                cast,
+                year,
+                month,
+                day,
+                hour,
+                minute,
+                second,
+                depth,
+                particle_centre_x,
+                particle_centre_y,	
+                particle_bbox_width,	
+                particle_bbox_height,
+                otsu_area,otsu_length,otsu_hull,otsu_threshold,
+                iso_area,iso_length,iso_hull,iso_threshold,
+                li_area,li_length,li_hull,li_threshold,
+                mean_area,mean_length,mean_hull,mean_threshold,
+                triangle_area,triangle_length,triangle_hull,triangle_threshold,
+                yen_area,yen_length,yen_hull,yen_threshold,
+                software_name,
+                software_version
+            ]
 
 class HoloBatch:
 
@@ -154,6 +250,12 @@ class EcoTaxa:
         ignore index 0
         '''
         self.df = self.df.loc[np.insert(pd.to_numeric(self.df[header].loc[1:]).values >= val,0,True)]
+
+    def depthsubset(self,threshold):
+        '''
+        remove any entries with depth values less than 
+        the given threshold
+        '''
 
     def addrow(self,img_file_name=None,
                     img_rank=None,

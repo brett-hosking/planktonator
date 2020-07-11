@@ -3,6 +3,8 @@ import os
 import shutil
 import numpy as np
 import datetime
+from skimage.filters import threshold_otsu, threshold_isodata, threshold_li, threshold_mean,threshold_minimum, threshold_triangle, threshold_yen
+from skimage import measure
 
 def extract_particles(inpath,outpath,pixellim=200,montage_str='mon'):
     '''
@@ -49,11 +51,11 @@ def extract_particles(inpath,outpath,pixellim=200,montage_str='mon'):
         img         = plktor.image.apply.removescale(img, a=[1205,1230,0,350], p=255)
 
         # apply threshold 
-        # mask        = plktor.image.apply.threshold(img,t=240)
+        # mask        = plktor.image.apply.threshold(img,t=240) # TODO add option to apply a hard threshold
         mask        = plktor.image.threshold.otsu(img)
 
         # apply low pass filter 
-        kernel  = plktor.image.filters.kernel2D(plktor.image.filters.linear(filterwidth=25))# 35
+        kernel  = plktor.image.filters.kernel2D(plktor.image.filters.linear(filterwidth=25))
         mask    = plktor.image.apply.convolution(mask,kernel) 
         # apply threshold 
         mask        = plktor.image.apply.threshold(mask,t=240) # 240
@@ -100,8 +102,9 @@ def extract_particles(inpath,outpath,pixellim=200,montage_str='mon'):
     annot.save(os.path.join(inpath,'particle_annotation.csv'))
 
 
-def measure_particles(particle_path,mon_height,mon_width,pixellim=100,project='measurements',lat=None,lon=None,date=None,time=None):
+def measure_particles(particle_path,mon_height,mon_width,pixellim=100,project='measure4ecotaxa',lat=None,lon=None,date=None,time=None,hbcomposite=None,depththreshold=0):
     '''
+    EcoTaxa measurements 
 
     Parameters
     ----------
@@ -119,17 +122,36 @@ def measure_particles(particle_path,mon_height,mon_width,pixellim=100,project='m
     # metadata - Ecotaxa
     ecotax      = plktor.metadata.EcoTaxa()
 
+    # HoloBatch composite file
+    if not hbcomposite == None: dfcomp      = plktor.holobatch.composite(hbcomposite)
+
 
     for f in filelist:
         if not f.lower().endswith(imgext): continue
         filename,_    = os.path.splitext(f)
 
+        montage_id  = f[:f.find('particle')-1]
+        deployment  = int(montage_id[:montage_id.find('-')])
+        image_num   = int(montage_id[montage_id.rfind('-')+1:])
+        montage     = montage_id + '-mon'
+
+        try:
+            index   = dfcomp[(dfcomp['image_number'] == image_num) & (dfcomp['deployment_id'] == deployment)].index.tolist()
+            depth   = float(dfcomp['depth'][index])
+
+            if depth < depththreshold:
+                os.remove(os.path.join(particle_path,f))
+                continue
+
+            if depth == None:
+                os.remove(os.path.join(particle_path,f))
+                continue
+
+        except:
+            depth = None
+
         # load image 
         img         = plktor.image.io.imread(os.path.join(particle_path,f))
-        # try:
-        #     img_height,img_width   = np.shape(img)
-        # except:
-        #     img_height,img_width, _   = np.shape(img)
 
         # apply threshold 
         mask        = plktor.image.apply.threshold(img,t=230)
@@ -185,12 +207,15 @@ def measure_particles(particle_path,mon_height,mon_width,pixellim=100,project='m
                         process_id='planktonator_' + project,
                         process_date=cdatetime.strftime("%Y%m%d"),
                         process_time=cdatetime.strftime("%H:%M:%S"),
-                        img_rank=0, # ?
+                        img_rank=0, 
                         object_id=filename,
                         object_lat=lat ,
                         object_lon=lon , 
                         object_date=date ,
                         object_time=time, 
+                        # metadata 
+                        object_depth_min=depth,
+                        object_depth_max=depth,
                         # Shape Calculations
                         object_width=obj_width, 
                         object_height=obj_height, 
@@ -218,8 +243,6 @@ def measure_particles(particle_path,mon_height,mon_width,pixellim=100,project='m
                         object_elongation=plktor.image.stats.perimmajor(objmajor,objminor),
                         object_major=objmajor,
                         object_minor=objminor 
-                        # object_minor= , 
-                        # object
 
                    )
 
@@ -261,7 +284,7 @@ def holobatchsync(annotationdir, holobatchdir):
             dfholo      = pd.read_csv(os.path.join(holobatchdir, montage_id[:-4] + '-pstat.csv'))
 
              # for each particle in dfholo, calculate the euclidean distance 
-            dfholo.Centroid = dfholo.Centroid.replace('\s+', ' ', regex=True) # USE this! should work for all
+            dfholo.Centroid = dfholo.Centroid.replace('\s+', ' ', regex=True) 
             # split the strings into two, x and y
             dfholo['centroid_x']    = pd.to_numeric(dfholo.Centroid.str.split(' ').str.get(0), errors='coerce')
             dfholo['centroid_y']    = pd.to_numeric(dfholo.Centroid.str.split(' ').str.get(1), errors='coerce')  
@@ -302,3 +325,150 @@ def holobatchsync(annotationdir, holobatchdir):
         
     # save holobatch metadata 
     holob.save(os.path.join(annotationdir,'holobatch_annotation.csv'))
+
+
+def thresholding(pdir,output,cast=None,hbcomposite=None,annotation=None,depththreshold=-99):
+    '''
+    Run thresholding on each particle and produce measurements
+
+    Parameters
+    ----------
+    pdir : str
+        the directory containing the particle images 
+    output : str
+        path for output csv file
+    '''
+    # Load the particle measurement class 
+    pmeasure    = plktor.metadata.ParticleMeasure()
+
+    # files in directory 
+    files       = os.listdir(pdir)
+
+    # HoloBatch composite file
+    if not hbcomposite == None: dfcomp      = plktor.holobatch.composite(hbcomposite)
+    if not annotation == None: 
+        annot      = plktor.metadata.Annotation()
+        annot.load(annotation)
+
+    for i in range(len(files)):
+        try:
+            image = plktor.image.io.imread(os.path.join(pdir,files[i]))
+        except:
+            continue
+        vignette    = files[i][:-4]
+        montage_id  = files[i][:files[i].find('particle')-1]
+        deployment  = int(montage_id[:montage_id.find('-')])
+        image_num   = int(montage_id[montage_id.rfind('-')+1:])
+        montage     = montage_id + '-mon'
+
+        try:
+            index   = dfcomp['image_number'] == image_num
+            year    = int(dfcomp['year'][index])
+            month   = int(dfcomp['month'][index])
+            day     = int(dfcomp['day'][index])
+            hour    = int(dfcomp['hour'][index])
+            minute  = int(dfcomp['minute'][index])
+            second  = int(dfcomp['second'][index])
+            depth   = float(dfcomp['depth'][index])
+
+            if depth < depththreshold:continue
+
+        except:
+            year,month,day,hour,minute,second,depth = None,None,None,None,None,None,None
+
+        try:
+            pindex      = annot.df['particle_id'] == vignette
+            particle_centre_x   = int(annot.df['centre_x'][pindex])
+            particle_centre_y   = int(annot.df['centre_y'][pindex])
+            particle_bbox_width = int(annot.df['bbox_width'][pindex])	
+            particle_bbox_height= int(annot.df['bbox_height'][pindex])
+        except:
+            particle_centre_x,particle_centre_y,particle_bbox_width,particle_bbox_height = None,None,None,None
+
+        #### OTSU ####
+        otsu_thresh = threshold_otsu(image)
+        binary = np.multiply(np.invert(image > otsu_thresh),255.0).astype(int)
+
+        props = measure.regionprops(binary)
+        otsu_area = props[0]['Area'] # area
+        otsu_carea = props[0]['ConvexArea'] # hull
+        otsu_rlength = round(plktor.image.stats.feret_diameter(binary),1) # length
+        # esd = round(props[0]['EquivDiameter'],1)
+        # solidity = round(props[0]['Solidity'],1)
+
+        #### ISOData ####
+        iso_thresh = threshold_isodata(image)
+        binary = np.multiply(np.invert(image > iso_thresh),255.0).astype(int)
+        props = measure.regionprops(binary)
+        iso_area = props[0]['Area'] # area
+        iso_carea = props[0]['ConvexArea'] # hull
+        iso_rlength = round(plktor.image.stats.feret_diameter(binary),1) # length
+
+        #### Li ####
+        li_thresh = threshold_li(image)
+        try:
+            binary = np.multiply(np.invert(image > li_thresh),255.0).astype(int)
+            props = measure.regionprops(binary)
+            li_area = props[0]['Area'] # area
+            li_carea = props[0]['ConvexArea'] # hull
+            li_rlength = round(plktor.image.stats.feret_diameter(binary),1) # length
+        except:
+            li_thresh = None
+            li_area = None
+            li_carea = None
+            li_rlength = None
+
+
+        #### Mean ####
+        mean_thresh = threshold_mean(image)
+        binary = np.multiply(np.invert(image > mean_thresh),255.0).astype(int)
+        props = measure.regionprops(binary)
+        mean_area = props[0]['Area'] # area
+        mean_carea = props[0]['ConvexArea'] # hull
+        mean_rlength = round(plktor.image.stats.feret_diameter(binary),1) # length
+
+
+        #### Triangle ####
+        triangle_thresh = threshold_triangle(image)
+        binary = np.multiply(np.invert(image > triangle_thresh),255.0).astype(int)
+        props = measure.regionprops(binary)
+        triangle_area = props[0]['Area'] # area
+        triangle_carea = props[0]['ConvexArea'] # hull
+        triangle_rlength = round(plktor.image.stats.feret_diameter(binary),1) # length
+
+        #### Yen ####
+        yen_thresh = threshold_yen(image)
+        binary = np.multiply(np.invert(image > yen_thresh),255.0).astype(int)
+        props = measure.regionprops(binary)
+        yen_area = props[0]['Area'] # area
+        yen_carea = props[0]['ConvexArea'] # hull
+        yen_rlength = round(plktor.image.stats.feret_diameter(binary),1) # length
+
+
+        pmeasure.addrow(
+                    planktonator_particle_id=vignette,
+                    planktonator_montage_id=montage,
+                    deployment=deployment,
+                    montage_number=image_num,
+                    cast=cast,
+                    year=year,
+                    month=month,
+                    day=day,
+                    hour=hour,
+                    minute=minute,
+                    second=second,
+                    depth=depth,
+                    particle_centre_x=particle_centre_x,
+                    particle_centre_y=particle_centre_y,	
+                    particle_bbox_width=particle_bbox_width,	
+                    particle_bbox_height=particle_bbox_height,
+                    otsu_area=otsu_area,otsu_length=otsu_rlength,otsu_hull=otsu_carea,otsu_threshold=otsu_thresh,
+                    iso_area=iso_area,iso_length=iso_rlength,iso_hull=iso_carea,iso_threshold=iso_thresh,
+                    li_area=li_area,li_length=li_rlength,li_hull=li_carea,li_threshold=li_thresh,
+                    mean_area=mean_area,mean_length=mean_rlength,mean_hull=mean_carea,mean_threshold=mean_thresh,
+                    triangle_area=triangle_area,triangle_length=triangle_rlength,triangle_hull=triangle_carea,triangle_threshold=triangle_thresh,
+                    yen_area=yen_area,yen_length=yen_rlength,yen_hull=yen_carea,yen_threshold=yen_thresh
+            )
+    
+    # pmeasure.subset(val=depththresold)
+    pmeasure.save(output)
